@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: robot-vacuum-backend
+
+  # Config database
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/robot_vacuum
+    username: root
+    password: "123456"
+    driver-class-name: com.mysql.cj.jdbc.Driver
