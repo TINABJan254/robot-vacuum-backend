@@ -23,3 +23,12 @@ app:
       audience: robot-vacuum-api
       access-token-ttl-seconds: 900
       refresh-token-ttl-seconds: 604800
+
+  mqtt:
+    broker-url: tcp://localhost:1883
+    client-id: robot-vacuum-backend
+    connection-timeout-seconds: 10
+    keep-alive-seconds: 30
+    recovery-interval-ms: 5000
+    topic-prefix: robot-vacuum/v1
+
