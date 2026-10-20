@@ -4,6 +4,7 @@ spring:
 
   # Config database
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -13,3 +14,12 @@ spring:
     username: root
     password: "123456"
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+app:
+  security:
+    jwt:
+      base64-secret: YHWRmO99u9zpJLr+hapIHKbmhHjsJlgFINzoryeVAnT92XySe7CDR+BP1WvRhrmLPfrWLABkW+FdRcLN75AGYA==
+      issuer: robot-vacuum-backend
+      audience: robot-vacuum-api
+      access-token-ttl-seconds: 900
+      refresh-token-ttl-seconds: 604800
