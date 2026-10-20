@@ -1,5 +1,8 @@
 package com.ht.robotvacuum.service;
 
+import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.mapper.RobotMapper;
+import org.springframework.security.core.Authentication;
 import com.ht.robotvacuum.exception.DuplicateResourceException;
 import com.ht.robotvacuum.exception.ResourceInUseException;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
@@ -29,6 +32,8 @@ public class RobotService {
     private final TaskRepository taskRepository;
     private final AlertRepository alertRepository;
     private final ServiceValidation validation;
+    private final CrudAccess access;
+    private final RobotMapper mapper;
 
     @Transactional
     public Robot create(@NotNull Robot robot) {
@@ -78,6 +83,40 @@ public class RobotService {
         robotRepository.delete(robot);
     }
 
+    // These overloads keep authorization, persistence and DTO mapping in one transaction.
+    @Transactional
+    public ResCreateRobotDTO create(@NotNull Robot input, Authentication authentication) {
+        var actor = access.actor(authentication);
+        validation.validate(input);
+        access.user(actor, input.getUser().getId());
+        return mapper.toCreate(this.create(input));
+    }
+
+    public ResGetRobotDTO getById(@Positive long id, Authentication authentication) {
+        return mapper.toGet(access.robot(access.actor(authentication), id));
+    }
+
+    public ResPageDTO<ResGetRobotDTO> getAll(@NotNull Pageable pageable, Authentication authentication) {
+        var actor = access.actor(authentication);
+        var page = actor.admin() ? this.getAll(pageable) : this.getByUserId(actor.id(), pageable);
+        return ResPageDTO.from(page.map(mapper::toGet));
+    }
+
+    @Transactional
+    public ResUpdateRobotDTO update(@NotNull Robot input, Authentication authentication) {
+        var actor = access.actor(authentication);
+        access.lockRobots(actor, input.getId());
+        validation.validate(input);
+        access.user(actor, input.getUser().getId());
+        return mapper.toUpdate(this.update(input));
+    }
+
+    @Transactional
+    public void deleteById(@Positive long id, Authentication authentication) {
+        access.lockRobots(access.actor(authentication), id);
+        this.deleteById(id);
+    }
+
     private Robot prepareValues(Robot input) {
         Robot candidate = new Robot();
         candidate.setName(input.getName());
@@ -93,6 +132,7 @@ public class RobotService {
     }
 
     private Robot findRobot(long id) {
+        validation.requirePositiveId(id, "Robot id");
         return robotRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Robot", id));
     }

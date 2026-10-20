@@ -40,8 +40,6 @@ public class AuthController {
     @PostMapping("/auth/register")
     public ResponseEntity<ResRegisterDTO> register(@Valid @RequestBody User user) {
         Assert.isTrue(user.getId() == 0, "A new user must have id 0");
-        Assert.isTrue(user.getName().length() <= 255, "Name must not exceed 255 characters");
-        Assert.isTrue(user.getUsername().length() <= 255, "Username must not exceed 255 characters");
         validatePasswordLength(user.getPassword());
         String hashPassword = this.passwordEncoder.encode(user.getPassword());
         user.setPassword(hashPassword);

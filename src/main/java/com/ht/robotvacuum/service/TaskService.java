@@ -1,5 +1,8 @@
 package com.ht.robotvacuum.service;
 
+import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.mapper.TaskMapper;
+import org.springframework.security.core.Authentication;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
 import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.model.Task;
@@ -23,6 +26,8 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final RobotRepository robotRepository;
     private final ServiceValidation validation;
+    private final CrudAccess access;
+    private final TaskMapper mapper;
 
     @Transactional
     public Task create(@NotNull Task task) {
@@ -61,6 +66,51 @@ public class TaskService {
         taskRepository.delete(findTask(id));
     }
 
+    // These overloads keep authorization, persistence and DTO mapping in one transaction.
+    @Transactional
+    public ResCreateTaskDTO create(@NotNull Task input, Authentication authentication) {
+        var actor = access.actor(authentication);
+        validation.validate(input);
+        access.lockRobots(actor, input.getRobot().getId());
+        return mapper.toCreate(this.create(input));
+    }
+
+    public ResGetTaskDTO getById(@Positive long id, Authentication authentication) {
+        var actor = access.actor(authentication);
+        Task existing = this.getById(id);
+        access.ownsRobot(actor, existing.getRobot());
+        return mapper.toGet(existing);
+    }
+
+    public ResPageDTO<ResGetTaskDTO> getAll(@NotNull Pageable pageable, Authentication authentication) {
+        var actor = access.actor(authentication);
+        var page = actor.admin() ? this.getAll(pageable) : taskRepository.findByRobotUserId(actor.id(), pageable);
+        return ResPageDTO.from(page.map(mapper::toGet));
+    }
+
+    @Transactional
+    public ResUpdateTaskDTO update(@NotNull Task input, Authentication authentication) {
+        var actor = access.actor(authentication);
+        Task existing = lock(input.getId());
+        validation.validate(input);
+        access.lockRobots(actor, existing.getRobot().getId(), input.getRobot().getId());
+        return mapper.toUpdate(this.update(input));
+    }
+
+    @Transactional
+    public void deleteById(@Positive long id, Authentication authentication) {
+        var actor = access.actor(authentication);
+        Task existing = lock(id);
+        access.lockRobots(actor, existing.getRobot().getId());
+        this.deleteById(id);
+    }
+
+    private Task lock(long id) {
+        validation.requirePositiveId(id, "Task id");
+        return taskRepository.findLockedById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", id));
+    }
+
     private Task prepareValues(Task input) {
         Task candidate = new Task();
         candidate.setName(input.getName());
@@ -81,6 +131,7 @@ public class TaskService {
     }
 
     private Task findTask(long id) {
+        validation.requirePositiveId(id, "Task id");
         return taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task", id));
     }

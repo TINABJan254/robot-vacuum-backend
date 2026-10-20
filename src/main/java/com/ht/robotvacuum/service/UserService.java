@@ -1,5 +1,8 @@
 package com.ht.robotvacuum.service;
 
+import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.mapper.UserMapper;
+import org.springframework.security.core.Authentication;
 import com.ht.robotvacuum.exception.DuplicateResourceException;
 import com.ht.robotvacuum.exception.ResourceInUseException;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
@@ -25,6 +28,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final RobotRepository robotRepository;
     private final ServiceValidation validation;
+    private final CrudAccess access;
+    private final UserMapper mapper;
 
     @Transactional
     public User create(@NotNull User user) {
@@ -76,7 +81,39 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    // These overloads keep authorization, persistence and DTO mapping in one transaction.
+    @Transactional
+    public ResCreateUserDTO create(@NotNull User input, Authentication authentication) {
+        var actor = access.actor(authentication);
+        access.admin(actor);
+        return mapper.toCreate(this.create(input));
+    }
+
+    public ResGetUserDTO getById(@Positive long id, Authentication authentication) {
+        return mapper.toGet(access.user(access.actor(authentication), id));
+    }
+
+    public ResPageDTO<ResGetUserDTO> getAll(@NotNull Pageable pageable, Authentication authentication) {
+        access.admin(access.actor(authentication));
+        return ResPageDTO.from(this.getAll(pageable).map(mapper::toGet));
+    }
+
+    @Transactional
+    public ResUpdateUserDTO update(@NotNull User input, Authentication authentication) {
+        access.lockUser(access.actor(authentication), input.getId());
+        return mapper.toUpdate(this.update(input));
+    }
+
+    @Transactional
+    public void deleteById(@Positive long id, Authentication authentication) {
+        var actor = access.actor(authentication);
+        access.admin(actor);
+        access.lockUser(actor, id);
+        this.deleteById(id);
+    }
+
     private User findUser(long id) {
+        validation.requirePositiveId(id, "User id");
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }

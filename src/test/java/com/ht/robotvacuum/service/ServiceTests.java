@@ -1,5 +1,10 @@
 package com.ht.robotvacuum.service;
 
+import com.ht.robotvacuum.mapper.UserMapper;
+import com.ht.robotvacuum.mapper.RobotMapper;
+import com.ht.robotvacuum.mapper.TaskMapper;
+import com.ht.robotvacuum.mapper.AlertMapper;
+import com.ht.robotvacuum.security.CurrentUser;
 import com.ht.robotvacuum.exception.DuplicateResourceException;
 import com.ht.robotvacuum.exception.ResourceInUseException;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
@@ -63,10 +68,11 @@ class ServiceTests {
         tasks = mock(TaskRepository.class);
         alerts = mock(AlertRepository.class);
         ServiceValidation validation = new ServiceValidation(validatorFactory.getValidator());
-        userService = new UserService(users, robots, validation);
-        robotService = new RobotService(robots, users, tasks, alerts, validation);
-        taskService = new TaskService(tasks, robots, validation);
-        alertService = new AlertService(alerts, robots, validation);
+        CrudAccess access = new CrudAccess(new CurrentUser(), validation, users, robots);
+        userService = new UserService(users, robots, validation, access, new UserMapper());
+        robotService = new RobotService(robots, users, tasks, alerts, validation, access, new RobotMapper());
+        taskService = new TaskService(tasks, robots, validation, access, new TaskMapper());
+        alertService = new AlertService(alerts, robots, validation, access, new AlertMapper());
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
         when(robots.save(any(Robot.class))).thenAnswer(call -> call.getArgument(0));
         when(tasks.save(any(Task.class))).thenAnswer(call -> call.getArgument(0));

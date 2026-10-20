@@ -97,6 +97,13 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/account").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/users/*").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/users", "/api/v1/users/*",
+                                "/api/v1/robots", "/api/v1/robots/*",
+                                "/api/v1/tasks", "/api/v1/tasks/*",
+                                "/api/v1/alerts", "/api/v1/alerts/*").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(errors).accessDeniedHandler(errors))

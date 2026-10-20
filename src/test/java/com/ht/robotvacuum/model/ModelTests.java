@@ -7,11 +7,14 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -91,6 +94,22 @@ class ModelTests {
         alert.initializeCreatedAt();
         assertEquals(supplied, task.getCreatedAt());
         assertEquals(supplied, alert.getCreatedAt());
+    }
+
+    @ParameterizedTest
+    @MethodSource("varcharFields")
+    void varcharAnnotationsAccept255AndReject256Characters(Class<?> model, String field) {
+        assertTrue(validator.validateValue(model, field, "x".repeat(255)).isEmpty());
+        var violations = validator.validateValue(model, field, "x".repeat(256));
+        assertEquals(1, violations.size());
+        assertEquals(field, violations.iterator().next().getPropertyPath().toString());
+    }
+
+    static Stream<Arguments> varcharFields() {
+        return Stream.of(Arguments.of(User.class, "name"), Arguments.of(User.class, "username"),
+                Arguments.of(Robot.class, "name"), Arguments.of(Robot.class, "pairCode"),
+                Arguments.of(Task.class, "name"), Arguments.of(Task.class, "status"),
+                Arguments.of(Alert.class, "type"));
     }
 
     private static Task validTask() {
