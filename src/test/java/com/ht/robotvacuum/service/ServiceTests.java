@@ -7,6 +7,7 @@ import com.ht.robotvacuum.model.Alert;
 import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.model.Task;
 import com.ht.robotvacuum.model.User;
+import com.ht.robotvacuum.model.enums.Role;
 import com.ht.robotvacuum.repository.AlertRepository;
 import com.ht.robotvacuum.repository.RobotRepository;
 import com.ht.robotvacuum.repository.TaskRepository;
@@ -75,6 +76,9 @@ class ServiceTests {
     @Test
     void createUserCopiesAllowedFieldsAndPreservesSuppliedPassword() {
         User input = user(0);
+        input.setRole(Role.ADMIN);
+        input.setRefreshToken("client-supplied-token");
+        input.setRefreshTokenExpiresAt(TIME);
         input.getRobots().add(robot(3));
         User created = userService.create(input);
         assertNotSame(input, created);
@@ -82,6 +86,9 @@ class ServiceTests {
         assertEquals(input.getUsername(), created.getUsername());
         assertEquals(input.getPassword(), created.getPassword());
         assertEquals(0, created.getId());
+        assertEquals(Role.USER, created.getRole());
+        assertNull(created.getRefreshToken());
+        assertNull(created.getRefreshTokenExpiresAt());
         assertTrue(created.getRobots().isEmpty());
         assertEquals(1, input.getRobots().size());
     }
@@ -89,6 +96,9 @@ class ServiceTests {
     @Test
     void updateUserKeepsPasswordAndRobotsEvenWhenInputContainsReplacements() {
         User existing = user(1);
+        existing.setRole(Role.ADMIN);
+        existing.setRefreshToken("server-stored-hash");
+        existing.setRefreshTokenExpiresAt(TIME);
         existing.getRobots().add(robot(3));
         when(users.findById(1L)).thenReturn(Optional.of(existing));
         User input = user(1);
@@ -100,6 +110,9 @@ class ServiceTests {
         assertEquals("New name", updated.getName());
         assertEquals("new-username", updated.getUsername());
         assertEquals("controller-supplied-hash", updated.getPassword());
+        assertEquals(Role.ADMIN, updated.getRole());
+        assertEquals("server-stored-hash", updated.getRefreshToken());
+        assertEquals(TIME, updated.getRefreshTokenExpiresAt());
         assertEquals(1, updated.getRobots().size());
     }
 

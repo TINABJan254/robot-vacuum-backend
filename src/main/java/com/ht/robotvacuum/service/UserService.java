@@ -4,6 +4,7 @@ import com.ht.robotvacuum.exception.DuplicateResourceException;
 import com.ht.robotvacuum.exception.ResourceInUseException;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
 import com.ht.robotvacuum.model.User;
+import com.ht.robotvacuum.model.enums.Role;
 import com.ht.robotvacuum.repository.RobotRepository;
 import com.ht.robotvacuum.repository.UserRepository;
 import jakarta.validation.constraints.NotNull;
@@ -25,7 +26,6 @@ public class UserService {
     private final RobotRepository robotRepository;
     private final ServiceValidation validation;
 
-    /** The caller supplies the password hash; this service does not hash passwords. */
     @Transactional
     public User create(@NotNull User user) {
         validation.requireNewId(user.getId());
@@ -33,6 +33,7 @@ public class UserService {
         created.setName(user.getName());
         created.setUsername(user.getUsername());
         created.setPassword(user.getPassword());
+        created.setRole(Role.USER);
         validation.validate(created);
         if (userRepository.existsByUsername(created.getUsername())) {
             throw new DuplicateResourceException("Username is already in use");
@@ -48,7 +49,6 @@ public class UserService {
         return userRepository.findAll(pageable);
     }
 
-    /** Updates profile fields only; the existing password and robots are preserved. */
     @Transactional
     public User update(@NotNull User user) {
         validation.requirePositiveId(user.getId(), "User id");
@@ -57,6 +57,7 @@ public class UserService {
         candidate.setName(user.getName());
         candidate.setUsername(user.getUsername());
         candidate.setPassword(existing.getPassword());
+        candidate.setRole(existing.getRole());
         validation.validate(candidate);
         if (userRepository.existsByUsernameAndIdNot(candidate.getUsername(), existing.getId())) {
             throw new DuplicateResourceException("Username is already in use");
