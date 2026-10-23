@@ -1,5 +1,7 @@
 package com.ht.robotvacuum.config;
 
+import com.ht.robotvacuum.mqtt.MqttInboundHandler;
+import com.ht.robotvacuum.service.RobotStateService;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -18,6 +20,7 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Configuration(proxyBeanMethods = false)
@@ -98,10 +101,9 @@ public class MqttConfig {
 
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public MessageHandler mqttInboundHandler() {
-        // Connection setup only. Replace this subscriber with business routing in the next stage.
-        return message -> log.info("Received MQTT message on topic {}",
-                message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC));
+    public MessageHandler mqttInboundHandler(MqttProperties properties, ObjectMapper mapper,
+                                             RobotStateService states) {
+        return new MqttInboundHandler(properties, mapper, states);
     }
 
     @Bean
