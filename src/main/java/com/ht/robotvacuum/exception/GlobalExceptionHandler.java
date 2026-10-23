@@ -56,6 +56,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return response(500, "Internal server error", new HttpHeaders(), List.of(), request);
     }
 
+    @ExceptionHandler(MqttUnavailableException.class)
+    public ResponseEntity<Object> mqttUnavailable(MqttUnavailableException exception, WebRequest request) {
+        return response(503, "MQTT service is unavailable", new HttpHeaders(), List.of(), request);
+    }
+
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception exception, Object body,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {

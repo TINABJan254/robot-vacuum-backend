@@ -27,10 +27,15 @@ class CrudAccess {
     }
 
     Actor actor(Authentication authentication) {
-        long id = currentUser.requireId(authentication);
-        if (!users.existsById(id)) {
+        Actor actor = actorFromToken(authentication);
+        if (!users.existsById(actor.id())) {
             throw new BadCredentialsException("Account no longer exists");
         }
+        return actor;
+    }
+
+    Actor actorFromToken(Authentication authentication) {
+        long id = currentUser.requireId(authentication);
         boolean admin = authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
         if (!admin && authentication.getAuthorities().stream()
@@ -76,8 +81,7 @@ class CrudAccess {
         }
     }
 
-    // All API writes involving a robot hold its lock through commit, including ownership transfer.
-    // A child row is locked first on update/delete; robot locks are then acquired in ID order.
+
     void lockRobots(Actor actor, long... ids) {
         Arrays.stream(ids).distinct().sorted().forEach(id -> {
             validation.requirePositiveId(id, "Id");
