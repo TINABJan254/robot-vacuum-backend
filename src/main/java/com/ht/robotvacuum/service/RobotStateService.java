@@ -6,6 +6,8 @@ import com.ht.robotvacuum.exception.ResourceNotFoundException;
 import com.ht.robotvacuum.repository.RobotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import java.time.Clock;
@@ -24,6 +26,7 @@ public class RobotStateService {
     private final RobotRepository robots;
     private final ServiceValidation validation;
     private final Clock clock;
+    private final CrudAccess access;
     private final ConcurrentHashMap<Long, RobotTelemetrySnapshot> states = new ConcurrentHashMap<>();
 
     public void acceptTelemetry(long robotId, MqttTelemetryDTO telemetry) {
@@ -46,7 +49,13 @@ public class RobotStateService {
         });
     }
 
-    // Internal read. Future HTTP/WebSocket callers must check current ownership before exposing it.
+    @Transactional(readOnly = true)
+    public Optional<RobotTelemetrySnapshot> getLatest(long robotId, Authentication authentication) {
+        access.robot(access.actor(authentication), robotId);
+        return getLatest(robotId);
+    }
+
+    // Internal read. HTTP/WebSocket callers use the authorized overload above.
     public Optional<RobotTelemetrySnapshot> getLatest(long robotId) {
         validation.requirePositiveId(robotId, "Robot id");
         RobotTelemetrySnapshot snapshot = states.get(robotId);

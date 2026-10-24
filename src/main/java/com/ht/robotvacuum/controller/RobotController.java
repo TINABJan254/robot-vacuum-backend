@@ -3,9 +3,11 @@ package com.ht.robotvacuum.controller;
 import com.ht.robotvacuum.dto.response.*;
 import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.service.RobotService;
+import com.ht.robotvacuum.service.RobotStateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ public class RobotController {
 
     private static final Set<String> SORT_FIELDS = Set.of("id", "name", "pairCode");
     private final RobotService service;
+    private final RobotStateService stateService;
 
     @PostMapping("/robots")
     public ResponseEntity<ResCreateRobotDTO> create(@Valid @RequestBody Robot input,
@@ -32,6 +35,14 @@ public class RobotController {
     @GetMapping("/robots/{id}")
     public ResponseEntity<ResGetRobotDTO> getById(@PathVariable long id, Authentication authentication) {
         return ResponseEntity.ok(service.getById(id, authentication));
+    }
+
+    @GetMapping("/robots/{id}/telemetry")
+    public ResponseEntity<RobotTelemetrySnapshot> getTelemetry(@PathVariable long id,
+                                                              Authentication authentication) {
+        return stateService.getLatest(id, authentication)
+                .map(snapshot -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(snapshot))
+                .orElseGet(() -> ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build());
     }
 
     @GetMapping("/robots")
