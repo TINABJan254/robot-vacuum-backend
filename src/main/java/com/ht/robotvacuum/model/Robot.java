@@ -27,10 +27,9 @@ public class Robot {
     @Column(nullable = false, name = "pair_code", unique = true)
     private String pairCode;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user; 
 
     @OneToMany(mappedBy = "robot")
     private List<Task> tasks = new ArrayList<>();

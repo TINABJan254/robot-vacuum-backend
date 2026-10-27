@@ -1,6 +1,7 @@
 package com.ht.robotvacuum.controller;
 
 import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.dto.request.ReqPairRobotDTO;
 import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.service.RobotService;
 import com.ht.robotvacuum.service.RobotStateService;
@@ -21,7 +22,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class RobotController {
 
-    private static final Set<String> SORT_FIELDS = Set.of("id", "name", "pairCode");
+    private static final Set<String> SORT_FIELDS = Set.of("id", "name");
     private final RobotService service;
     private final RobotStateService stateService;
 
@@ -30,6 +31,13 @@ public class RobotController {
                                                        Authentication authentication) {
         var created = service.create(input, authentication);
         return ResponseEntity.created(URI.create("/api/v1/robots/" + created.id())).body(created);
+    }
+
+    @PostMapping("/robots/pair")
+    public ResponseEntity<ResGetRobotDTO> pair(@Valid @RequestBody ReqPairRobotDTO input,
+                                              Authentication authentication) {
+
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.pair(input, authentication));
     }
 
     @GetMapping("/robots/{id}")
@@ -57,7 +65,7 @@ public class RobotController {
 
     @PutMapping("/robots/{id}")
     public ResponseEntity<ResUpdateRobotDTO> update(@PathVariable long id,
-            @Valid @RequestBody Robot input, Authentication authentication) {
+            @RequestBody Robot input, Authentication authentication) {
         input.setId(id);
         return ResponseEntity.ok(service.update(input, authentication));
     }

@@ -1,5 +1,9 @@
 package com.ht.robotvacuum.config;
 
+import com.ht.robotvacuum.dto.mqtt.MqttTelemetryDTO;
+import com.ht.robotvacuum.model.enums.RobotMode;
+import com.ht.robotvacuum.model.enums.RobotStatus;
+import com.ht.robotvacuum.service.RobotStateService;
 import org.eclipse.paho.client.mqttv3.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,13 +15,17 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -111,8 +119,11 @@ class MqttConfigTests {
         when(outbound.disconnect()).thenReturn(token);
         when(outbound.publish(anyString(), any(MqttMessage.class), isNull(), any(IMqttActionListener.class)))
                 .thenReturn(token);
+        var states = mock(RobotStateService.class);
 
         runner().withUserConfiguration(MqttConfig.class)
+                .withBean(ObjectMapper.class, () -> JsonMapper.builder().build())
+                .withBean(RobotStateService.class, () -> states)
                 .withBean("testClientFactory", MqttPahoClientFactory.class, () -> factory,
                         definition -> definition.setPrimary(true))
                 .run(context -> {
@@ -130,8 +141,21 @@ class MqttConfigTests {
                             any(IMqttMessageListener[].class));
 
                     String incomingTopic = "robot-vacuum/v1/robots/123/telemetry";
-                    adapter.messageArrived(incomingTopic, new MqttMessage("private-payload".getBytes(StandardCharsets.UTF_8)));
-                    assertTrue(output.getOut().contains("Received MQTT message on topic " + incomingTopic));
+                    String payload = """
+                            {"batteryPercent":78,"status":"WORKING","mode":"MANUAL",
+                             "sentAt":"2026-10-23T13:00:00Z"}
+                            """;
+                    adapter.messageArrived(incomingTopic, new MqttMessage(payload.getBytes(StandardCharsets.UTF_8)));
+                    var telemetry = new MqttTelemetryDTO(78, RobotStatus.WORKING, RobotMode.MANUAL,
+                            Instant.parse("2026-10-23T13:00:00Z"));
+                    verify(states).acceptTelemetry(123, telemetry);
+                    // A database failure must reach the error channel without stopping the next reading.
+                    doThrow(new DataAccessResourceFailureException("private-payload"))
+                            .doNothing().when(states).acceptTelemetry(123, telemetry);
+                    adapter.messageArrived(incomingTopic, new MqttMessage(payload.getBytes(StandardCharsets.UTF_8)));
+                    assertTrue(output.getOut().contains("MQTT inbound processing failed"));
+                    adapter.messageArrived(incomingTopic, new MqttMessage(payload.getBytes(StandardCharsets.UTF_8)));
+                    verify(states, times(3)).acceptTelemetry(123, telemetry);
                     assertFalse(output.getOut().contains("private-payload"));
 
                     var channel = context.getBean("mqttOutputChannel", MessageChannel.class);

@@ -1,8 +1,11 @@
 package com.ht.robotvacuum.service;
 
 import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.dto.request.ReqPairRobotDTO;
+import com.ht.robotvacuum.exception.RobotPairingException;
 import com.ht.robotvacuum.mapper.RobotMapper;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import com.ht.robotvacuum.exception.DuplicateResourceException;
 import com.ht.robotvacuum.exception.ResourceInUseException;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
@@ -36,13 +39,11 @@ public class RobotService {
     private final RobotMapper mapper;
 
     @Transactional
-    public Robot create(@NotNull Robot robot) {
-        validation.requireNewId(robot.getId());
-        Robot created = prepareValues(robot);
-        if (robotRepository.existsByPairCode(created.getPairCode())) {
-            throw new DuplicateResourceException("Pair code is already in use");
-        }
-        return robotRepository.save(created);
+    public ResCreateRobotDTO create(@NotNull Robot robot, Authentication authentication) {
+        var actor = access.actor(authentication);
+        access.admin(actor);
+
+        return mapper.toCreate(robotRepository.save(robot));
     }
 
     public Robot getById(@Positive long id) {
@@ -83,13 +84,22 @@ public class RobotService {
         robotRepository.delete(robot);
     }
 
-    // These overloads keep authorization, persistence and DTO mapping in one transaction.
     @Transactional
-    public ResCreateRobotDTO create(@NotNull Robot input, Authentication authentication) {
+    public ResGetRobotDTO pair(@NotNull ReqPairRobotDTO input, Authentication authentication) {
         var actor = access.actor(authentication);
         validation.validate(input);
-        access.user(actor, input.getUser().getId());
-        return mapper.toCreate(this.create(input));
+        User owner = access.user(actor, actor.id());
+
+        Robot robot = robotRepository.findLockedById(input.getRobotId())
+                .orElseThrow(RobotPairingException::new);
+        if (!robot.getPairCode().equals(input.getPairCode())) {
+            throw new RobotPairingException();
+        }
+        if (robot.getUser() != null && robot.getUser().getId() != actor.id()) {
+            throw new ResourceInUseException("Robot is already paired with another account");
+        }
+        robot.setUser(owner);
+        return mapper.toGet(robot);
     }
 
     public ResGetRobotDTO getById(@Positive long id, Authentication authentication) {
@@ -106,9 +116,19 @@ public class RobotService {
     public ResUpdateRobotDTO update(@NotNull Robot input, Authentication authentication) {
         var actor = access.actor(authentication);
         access.lockRobots(actor, input.getId());
-        validation.validate(input);
-        access.user(actor, input.getUser().getId());
-        return mapper.toUpdate(this.update(input));
+        Robot existing = findRobot(input.getId());
+        if (!actor.admin() && ((input.getPairCode() != null
+                && !input.getPairCode().equals(existing.getPairCode()))
+                || (input.getUser() != null && input.getUser().getId() != actor.id()))) {
+            throw new AccessDeniedException("Only an administrator can change the pairing code or owner");
+        }
+        Robot candidate = new Robot();
+        candidate.setId(existing.getId());
+        candidate.setName(input.getName());
+        candidate.setPairCode(actor.admin() && input.getPairCode() != null
+                ? input.getPairCode() : existing.getPairCode());
+        candidate.setUser(actor.admin() && input.getUser() != null ? input.getUser() : existing.getUser());
+        return mapper.toUpdate(this.update(candidate));
     }
 
     @Transactional
@@ -123,11 +143,13 @@ public class RobotService {
         candidate.setPairCode(input.getPairCode());
         candidate.setUser(input.getUser());
         validation.validate(candidate);
-        long userId = candidate.getUser().getId();
-        validation.requirePositiveId(userId, "User id");
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
-        candidate.setUser(user);
+        if (candidate.getUser() != null) {
+            long userId = candidate.getUser().getId();
+            validation.requirePositiveId(userId, "User id");
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+            candidate.setUser(user);
+        }
         return candidate;
     }
 

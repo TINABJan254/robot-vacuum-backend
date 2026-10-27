@@ -76,7 +76,7 @@ class CrudAccess {
     }
 
     void ownsRobot(Actor actor, Robot robot) {
-        if (!actor.admin() && robot.getUser().getId() != actor.id()) {
+        if (!actor.admin() && (robot.getUser() == null || robot.getUser().getId() != actor.id())) {
             throw new ResourceNotFoundException("Robot", robot.getId());
         }
     }

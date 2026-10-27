@@ -10,14 +10,18 @@ import org.springframework.stereotype.Component;
 public class RobotMapper {
 
     public ResCreateRobotDTO toCreate(Robot value) {
-        return new ResCreateRobotDTO(value.getId(), value.getName(), value.getPairCode(), value.getUser().getId());
+        return new ResCreateRobotDTO(value.getId(), value.getName(), value.getPairCode(), ownerId(value));
     }
 
     public ResUpdateRobotDTO toUpdate(Robot value) {
-        return new ResUpdateRobotDTO(value.getId(), value.getName(), value.getPairCode(), value.getUser().getId());
+        return new ResUpdateRobotDTO(value.getId(), value.getName(), value.getPairCode(), ownerId(value));
     }
 
     public ResGetRobotDTO toGet(Robot value) {
-        return new ResGetRobotDTO(value.getId(), value.getName(), value.getPairCode(), value.getUser().getId());
+        return new ResGetRobotDTO(value.getId(), value.getName(), value.getPairCode(), ownerId(value));
+    }
+
+    private Long ownerId(Robot value) {
+        return value.getUser() == null ? null : value.getUser().getId();
     }
 }

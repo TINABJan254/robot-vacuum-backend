@@ -40,6 +40,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return response(404, "Resource not found", new HttpHeaders(), List.of(), request);
     }
 
+    @ExceptionHandler(RobotPairingException.class)
+    public ResponseEntity<Object> pairingFailed(RobotPairingException exception, WebRequest request) {
+        return response(404, "Robot ID or pairing code is incorrect", new HttpHeaders(), List.of(), request);
+    }
+
     @ExceptionHandler({DuplicateResourceException.class, ResourceInUseException.class,
             DataIntegrityViolationException.class})
     public ResponseEntity<Object> conflict(Exception exception, WebRequest request) {
