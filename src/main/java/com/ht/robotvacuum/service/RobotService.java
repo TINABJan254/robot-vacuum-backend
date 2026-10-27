@@ -102,6 +102,14 @@ public class RobotService {
         return mapper.toGet(robot);
     }
 
+    @Transactional
+    public ResGetRobotDTO unpair(@Positive long id, Authentication authentication) {
+        access.lockRobots(access.actor(authentication), id);
+        Robot robot = findRobot(id);
+        robot.setUser(null);
+        return mapper.toGet(robot);
+    }
+
     public ResGetRobotDTO getById(@Positive long id, Authentication authentication) {
         return mapper.toGet(access.robot(access.actor(authentication), id));
     }

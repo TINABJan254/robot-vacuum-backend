@@ -40,6 +40,11 @@ public class RobotController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.pair(input, authentication));
     }
 
+    @PostMapping("/robots/{id}/unpair")
+    public ResponseEntity<ResGetRobotDTO> unpair(@PathVariable long id, Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.unpair(id, authentication));
+    }
+
     @GetMapping("/robots/{id}")
     public ResponseEntity<ResGetRobotDTO> getById(@PathVariable long id, Authentication authentication) {
         return ResponseEntity.ok(service.getById(id, authentication));
