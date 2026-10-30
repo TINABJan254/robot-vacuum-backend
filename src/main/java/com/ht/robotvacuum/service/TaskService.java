@@ -1,11 +1,13 @@
 package com.ht.robotvacuum.service;
 
-import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.dto.response.ResGetTaskDTO;
+import com.ht.robotvacuum.dto.response.ResPageDTO;
 import com.ht.robotvacuum.mapper.TaskMapper;
 import org.springframework.security.core.Authentication;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
 import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.model.Task;
+import com.ht.robotvacuum.model.enums.TaskStatus;
 import com.ht.robotvacuum.repository.RobotRepository;
 import com.ht.robotvacuum.repository.TaskRepository;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.util.Assert;
 
 @Service
 @Validated
@@ -32,7 +35,24 @@ public class TaskService {
     @Transactional
     public Task create(@NotNull Task task) {
         validation.requireNewId(task.getId());
-        return taskRepository.save(prepareValues(task));
+        validation.validate(task);
+        if (task.getStatus() == TaskStatus.RUNNING) {
+            Assert.isTrue(task.getFinishedAt() == null, "A running task must not have a finish time");
+        } else {
+            Assert.notNull(task.getFinishedAt(), "A completed task requires a finish time");
+            Assert.isTrue(!task.getFinishedAt().isBefore(task.getStartedAt()),
+                    "Task finish time must not precede its start time");
+        }
+        long robotId = task.getRobot().getId();
+        validation.requirePositiveId(robotId, "Robot id");
+        Robot robot = requireRobot(robotId);
+
+        Task created = new Task();
+        created.setStartedAt(task.getStartedAt());
+        created.setFinishedAt(task.getFinishedAt());
+        created.setStatus(task.getStatus());
+        created.setRobot(robot);
+        return taskRepository.save(created);
     }
 
     public Task getById(@Positive long id) {
@@ -52,12 +72,22 @@ public class TaskService {
     public Task update(@NotNull Task task) {
         validation.requirePositiveId(task.getId(), "Task id");
         Task existing = findTask(task.getId());
-        Task candidate = prepareValues(task);
-        existing.setName(candidate.getName());
-        existing.setStartAt(candidate.getStartAt());
-        existing.setDuration(candidate.getDuration());
-        existing.setStatus(candidate.getStatus());
-        existing.setRobot(candidate.getRobot());
+        validation.validate(task);
+        if (task.getStatus() == TaskStatus.RUNNING) {
+            Assert.isTrue(task.getFinishedAt() == null, "A running task must not have a finish time");
+        } else {
+            Assert.notNull(task.getFinishedAt(), "A completed task requires a finish time");
+            Assert.isTrue(!task.getFinishedAt().isBefore(task.getStartedAt()),
+                    "Task finish time must not precede its start time");
+        }
+        long robotId = task.getRobot().getId();
+        validation.requirePositiveId(robotId, "Robot id");
+        Robot robot = requireRobot(robotId);
+
+        existing.setStartedAt(task.getStartedAt());
+        existing.setFinishedAt(task.getFinishedAt());
+        existing.setStatus(task.getStatus());
+        existing.setRobot(robot);
         return taskRepository.save(existing);
     }
 
@@ -66,15 +96,7 @@ public class TaskService {
         taskRepository.delete(findTask(id));
     }
 
-    // These overloads keep authorization, persistence and DTO mapping in one transaction.
-    @Transactional
-    public ResCreateTaskDTO create(@NotNull Task input, Authentication authentication) {
-        var actor = access.actor(authentication);
-        validation.validate(input);
-        access.lockRobots(actor, input.getRobot().getId());
-        return mapper.toCreate(this.create(input));
-    }
-
+    // HTTP reads keep authorization and DTO mapping in the same read-only transaction.
     public ResGetTaskDTO getById(@Positive long id, Authentication authentication) {
         var actor = access.actor(authentication);
         Task existing = this.getById(id);
@@ -88,41 +110,10 @@ public class TaskService {
         return ResPageDTO.from(page.map(mapper::toGet));
     }
 
-    @Transactional
-    public ResUpdateTaskDTO update(@NotNull Task input, Authentication authentication) {
-        var actor = access.actor(authentication);
-        Task existing = lock(input.getId());
-        validation.validate(input);
-        access.lockRobots(actor, existing.getRobot().getId(), input.getRobot().getId());
-        return mapper.toUpdate(this.update(input));
-    }
-
-    @Transactional
-    public void deleteById(@Positive long id, Authentication authentication) {
-        var actor = access.actor(authentication);
-        Task existing = lock(id);
-        access.lockRobots(actor, existing.getRobot().getId());
-        this.deleteById(id);
-    }
-
-    private Task lock(long id) {
-        validation.requirePositiveId(id, "Task id");
-        return taskRepository.findLockedById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task", id));
-    }
-
-    private Task prepareValues(Task input) {
-        Task candidate = new Task();
-        candidate.setName(input.getName());
-        candidate.setStartAt(input.getStartAt());
-        candidate.setDuration(input.getDuration());
-        candidate.setStatus(input.getStatus());
-        candidate.setRobot(input.getRobot());
-        validation.validate(candidate);
-        long robotId = candidate.getRobot().getId();
-        validation.requirePositiveId(robotId, "Robot id");
-        candidate.setRobot(requireRobot(robotId));
-        return candidate;
+    public ResPageDTO<ResGetTaskDTO> getByRobotId(@Positive long robotId, @NotNull Pageable pageable,
+                                                Authentication authentication) {
+        access.robot(access.actor(authentication), robotId);
+        return ResPageDTO.from(taskRepository.findByRobotId(robotId, pageable).map(mapper::toGet));
     }
 
     private Robot requireRobot(long robotId) {
