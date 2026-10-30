@@ -10,6 +10,7 @@ import com.ht.robotvacuum.model.Robot;
 import com.ht.robotvacuum.repository.AlertRepository;
 import com.ht.robotvacuum.repository.RobotRepository;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import org.springframework.util.Assert;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -89,7 +90,7 @@ public class AlertService {
         alertRepository.delete(findAlert(id));
     }
 
-    // HTTP reads and deletion enforce authorization in the same transaction.
+    // HTTP operations enforce authorization in the same transaction.
     public ResGetAlertDTO getById(@Positive long id, Authentication authentication) {
         var actor = access.actor(authentication);
         Alert existing = this.getById(id);
@@ -107,6 +108,15 @@ public class AlertService {
                                                  Authentication authentication) {
         access.robot(access.actor(authentication), robotId);
         return ResPageDTO.from(alertRepository.findByRobotId(robotId, pageable).map(mapper::toGet));
+    }
+
+    @Transactional
+    public ResGetAlertDTO update(@Positive long id, Instant readAt, Authentication authentication) {
+        var actor = access.actor(authentication);
+        Alert existing = lock(id);
+        access.lockRobots(actor, existing.getRobot().getId());
+        existing.setReadAt(readAt);
+        return mapper.toGet(existing);
     }
 
     @Transactional

@@ -1,9 +1,12 @@
 package com.ht.robotvacuum.controller;
 
+import com.ht.robotvacuum.dto.request.ReqUpdateAlertDTO;
 import com.ht.robotvacuum.dto.response.ResGetAlertDTO;
 import com.ht.robotvacuum.dto.response.ResPageDTO;
 import com.ht.robotvacuum.service.AlertService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.MultiValueMap;
@@ -33,6 +36,13 @@ public class AlertController {
         var pageable = CrudPageRequest.of(page, size,
                 query.getOrDefault("sort", List.of("id,asc")).toArray(String[]::new), SORT_FIELDS);
         return ResponseEntity.ok(service.getAll(pageable, authentication));
+    }
+
+    @PatchMapping("/alerts/{id}")
+    public ResponseEntity<ResGetAlertDTO> update(@PathVariable long id,
+            @Valid @RequestBody ReqUpdateAlertDTO input, Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(service.update(id, input.readAt(), authentication));
     }
 
     @DeleteMapping("/alerts/{id}")
