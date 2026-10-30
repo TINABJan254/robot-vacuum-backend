@@ -108,6 +108,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/v1/users", "/api/v1/users/*",
                                 "/api/v1/robots", "/api/v1/robots/*",
                                 "/api/v1/tasks", "/api/v1/tasks/*",
+                                "/api/v1/schedules", "/api/v1/schedules/*",
                                 "/api/v1/alerts", "/api/v1/alerts/*").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().denyAll())

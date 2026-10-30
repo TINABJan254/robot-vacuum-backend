@@ -62,23 +62,31 @@ public class ScheduleService {
     }
 
     @Transactional
-    public ResGetScheduleDTO update(@Positive long id, @NotNull LocalTime time, boolean enabled,
-                                    @NotNull List<Integer> daysOfWeek, Authentication authentication) {
+    public ResGetScheduleDTO update(@Positive long id, LocalTime time, Boolean enabled,
+                                    List<Integer> daysOfWeek, Authentication authentication) {
         var actor = access.actor(authentication);
         Schedule schedule = lock(id);
         access.lockRobots(actor, schedule.getRobot().getId());
-        Assert.notNull(time, "Schedule time is required");
-        Assert.notNull(daysOfWeek, "Days of week are required");
-        var selected = new HashSet<Integer>();
-        for (Integer day : daysOfWeek) {
-            Assert.isTrue(day != null && day >= 1 && day <= 7, "Day of week must be between 1 and 7");
-            if (!selected.add(day)) {
-                throw new DuplicateResourceException("A schedule cannot repeat the same day twice");
+        Assert.isTrue(time != null || enabled != null || daysOfWeek != null,
+                "At least one schedule field is required");
+        if (daysOfWeek != null) {
+            var selected = new HashSet<Integer>();
+            for (Integer day : daysOfWeek) {
+                Assert.isTrue(day != null && day >= 1 && day <= 7, "Day of week must be between 1 and 7");
+                if (!selected.add(day)) {
+                    throw new DuplicateResourceException("A schedule cannot repeat the same day twice");
+                }
             }
         }
-        schedule.setTime(time);
-        schedule.setEnabled(enabled);
-        repeatService.replaceDays(schedule, daysOfWeek);
+        if (time != null) {
+            schedule.setTime(time);
+        }
+        if (enabled != null) {
+            schedule.setEnabled(enabled);
+        }
+        if (daysOfWeek != null) {
+            repeatService.replaceDays(schedule, daysOfWeek);
+        }
         return mapper.toGet(schedule);
     }
 
@@ -101,15 +109,6 @@ public class ScheduleService {
                                                     Authentication authentication) {
         access.robot(access.actor(authentication), robotId);
         return ResPageDTO.from(scheduleRepository.findByRobotId(robotId, pageable).map(mapper::toGet));
-    }
-
-    @Transactional
-    public ResGetScheduleDTO setEnabled(@Positive long id, boolean enabled, Authentication authentication) {
-        var actor = access.actor(authentication);
-        Schedule schedule = lock(id);
-        access.lockRobots(actor, schedule.getRobot().getId());
-        schedule.setEnabled(enabled);
-        return mapper.toGet(schedule);
     }
 
     @Transactional
