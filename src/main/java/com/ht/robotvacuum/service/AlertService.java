@@ -1,6 +1,7 @@
 package com.ht.robotvacuum.service;
 
-import com.ht.robotvacuum.dto.response.*;
+import com.ht.robotvacuum.dto.response.ResGetAlertDTO;
+import com.ht.robotvacuum.dto.response.ResPageDTO;
 import com.ht.robotvacuum.mapper.AlertMapper;
 import org.springframework.security.core.Authentication;
 import com.ht.robotvacuum.exception.ResourceNotFoundException;
@@ -34,7 +35,20 @@ public class AlertService {
     @Transactional
     public Alert create(@NotNull Alert alert) {
         validation.requireNewId(alert.getId());
-        return alertRepository.save(prepareValues(alert));
+        validation.validate(alert);
+        if (alert.getMessage() != null) {
+            Assert.isTrue(alert.getMessage().getBytes(StandardCharsets.UTF_8).length <= 65_535,
+                    "Message exceeds TEXT capacity");
+        }
+        long robotId = alert.getRobot().getId();
+        validation.requirePositiveId(robotId, "Robot id");
+        Robot robot = requireRobot(robotId);
+
+        Alert created = new Alert();
+        created.setTitle(alert.getTitle());
+        created.setMessage(alert.getMessage());
+        created.setRobot(robot);
+        return alertRepository.save(created);
     }
 
     public Alert getById(@Positive long id) {
@@ -54,11 +68,19 @@ public class AlertService {
     public Alert update(@NotNull Alert alert) {
         validation.requirePositiveId(alert.getId(), "Alert id");
         Alert existing = findAlert(alert.getId());
-        Alert candidate = prepareValues(alert);
-        existing.setType(candidate.getType());
-        existing.setMessage(candidate.getMessage());
+        validation.validate(alert);
+        if (alert.getMessage() != null) {
+            Assert.isTrue(alert.getMessage().getBytes(StandardCharsets.UTF_8).length <= 65_535,
+                    "Message exceeds TEXT capacity");
+        }
+        long robotId = alert.getRobot().getId();
+        validation.requirePositiveId(robotId, "Robot id");
+        Robot robot = requireRobot(robotId);
+
+        existing.setTitle(alert.getTitle());
+        existing.setMessage(alert.getMessage());
         existing.setReadAt(alert.getReadAt());
-        existing.setRobot(candidate.getRobot());
+        existing.setRobot(robot);
         return alertRepository.save(existing);
     }
 
@@ -67,15 +89,7 @@ public class AlertService {
         alertRepository.delete(findAlert(id));
     }
 
-    // These overloads keep authorization, persistence and DTO mapping in one transaction.
-    @Transactional
-    public ResCreateAlertDTO create(@NotNull Alert input, Authentication authentication) {
-        var actor = access.actor(authentication);
-        validation.validate(input);
-        access.lockRobots(actor, input.getRobot().getId());
-        return mapper.toCreate(this.create(input));
-    }
-
+    // HTTP reads and deletion enforce authorization in the same transaction.
     public ResGetAlertDTO getById(@Positive long id, Authentication authentication) {
         var actor = access.actor(authentication);
         Alert existing = this.getById(id);
@@ -89,13 +103,10 @@ public class AlertService {
         return ResPageDTO.from(page.map(mapper::toGet));
     }
 
-    @Transactional
-    public ResUpdateAlertDTO update(@NotNull Alert input, Authentication authentication) {
-        var actor = access.actor(authentication);
-        Alert existing = lock(input.getId());
-        validation.validate(input);
-        access.lockRobots(actor, existing.getRobot().getId(), input.getRobot().getId());
-        return mapper.toUpdate(this.update(input));
+    public ResPageDTO<ResGetAlertDTO> getByRobotId(@Positive long robotId, @NotNull Pageable pageable,
+                                                 Authentication authentication) {
+        access.robot(access.actor(authentication), robotId);
+        return ResPageDTO.from(alertRepository.findByRobotId(robotId, pageable).map(mapper::toGet));
     }
 
     @Transactional
@@ -110,20 +121,6 @@ public class AlertService {
         validation.requirePositiveId(id, "Alert id");
         return alertRepository.findLockedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Alert", id));
-    }
-
-    private Alert prepareValues(Alert input) {
-        Alert candidate = new Alert();
-        candidate.setType(input.getType());
-        candidate.setMessage(input.getMessage());
-        candidate.setRobot(input.getRobot());
-        validation.validate(candidate);
-        Assert.isTrue(candidate.getMessage().getBytes(StandardCharsets.UTF_8).length <= 65_535,
-                "Message exceeds TEXT capacity");
-        long robotId = candidate.getRobot().getId();
-        validation.requirePositiveId(robotId, "Robot id");
-        candidate.setRobot(requireRobot(robotId));
-        return candidate;
     }
 
     private Robot requireRobot(long robotId) {

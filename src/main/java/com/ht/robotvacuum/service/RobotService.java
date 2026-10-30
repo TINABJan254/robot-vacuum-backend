@@ -15,6 +15,7 @@ import com.ht.robotvacuum.repository.AlertRepository;
 import com.ht.robotvacuum.repository.RobotRepository;
 import com.ht.robotvacuum.repository.TaskRepository;
 import com.ht.robotvacuum.repository.UserRepository;
+import com.ht.robotvacuum.repository.ScheduleRepository;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class RobotService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final AlertRepository alertRepository;
+    private final ScheduleRepository scheduleRepository;
     private final ServiceValidation validation;
     private final CrudAccess access;
     private final RobotMapper mapper;
@@ -78,8 +80,9 @@ public class RobotService {
     @Transactional
     public void deleteById(@Positive long id) {
         Robot robot = findRobot(id);
-        if (taskRepository.existsByRobotId(id) || alertRepository.existsByRobotId(id)) {
-            throw new ResourceInUseException("Cannot delete a robot that still has tasks or alerts");
+        if (taskRepository.existsByRobotId(id) || alertRepository.existsByRobotId(id)
+                || scheduleRepository.existsByRobotId(id)) {
+            throw new ResourceInUseException("Cannot delete a robot that still has tasks, alerts or schedules");
         }
         robotRepository.delete(robot);
     }
