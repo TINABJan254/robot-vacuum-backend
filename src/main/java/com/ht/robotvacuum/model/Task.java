@@ -1,5 +1,6 @@
 package com.ht.robotvacuum.model;
 
+import com.ht.robotvacuum.model.enums.TaskStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -17,34 +18,17 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank
-    @Size(max = 255)
-    @Column(nullable = false)
-    private String name;
+    @NotNull
+    @Column(name = "started_at", nullable = false)
+    private Instant startedAt;
 
     @NotNull
-    @Column(name = "start_at", nullable = false)
-    private Instant startAt;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private TaskStatus status;
 
-    // Duration in seconds.
-    @Positive
-    @Column(nullable = false)
-    private long duration;
-
-    @NotBlank
-    @Size(max = 255)
-    @Column(nullable = false)
-    private String status;
-
-    @Column(name = "create_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @PrePersist
-    void initializeCreatedAt() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-    }
+    @Column(name = "finished_at")
+    private Instant finishedAt;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

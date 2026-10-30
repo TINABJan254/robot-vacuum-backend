@@ -19,10 +19,9 @@ public class Alert {
     @NotBlank
     @Size(max = 255)
     @Column(nullable = false)
-    private String type;
+    private String title;
 
-    @NotBlank
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String message;
 
     @Column(name = "read_at")

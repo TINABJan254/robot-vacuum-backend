@@ -37,4 +37,7 @@ public class Robot {
     @OneToMany(mappedBy = "robot")
     private List<Alert> alerts = new ArrayList<>();
 
+    @OneToMany(mappedBy = "robot")
+    private List<Schedule> schedules = new ArrayList<>();
+
 }
