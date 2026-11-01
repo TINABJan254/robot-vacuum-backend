@@ -10,8 +10,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
+import java.time.LocalTime;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
+
+    @Query("""
+            select s.id from Schedule s
+            where s.enabled = true and s.time = :time
+              and exists (select r.id from RepeatSchedule r
+                          where r.schedule = s and r.dayOfWeek = :dayOfWeek)
+            order by s.id
+            """)
+    List<Long> findDueIds(@Param("time") LocalTime time, @Param("dayOfWeek") int dayOfWeek);
 
     Page<Schedule> findByRobotId(long robotId, Pageable pageable);
 

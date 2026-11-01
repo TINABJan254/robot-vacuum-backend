@@ -11,5 +11,10 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MqttCommandDTO(UUID commandId, RobotCommandAction action,
                              RobotMode mode, RobotDirection direction,
-                             Instant issuedAt, Instant expiresAt) {
+                             Instant issuedAt, Instant expiresAt, Long taskId) {
+
+    public MqttCommandDTO(UUID commandId, RobotCommandAction action, RobotMode mode,
+                          RobotDirection direction, Instant issuedAt, Instant expiresAt) {
+        this(commandId, action, mode, direction, issuedAt, expiresAt, null);
+    }
 }

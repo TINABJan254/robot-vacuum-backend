@@ -2,6 +2,7 @@ package com.ht.robotvacuum.config;
 
 import com.ht.robotvacuum.mqtt.MqttInboundHandler;
 import com.ht.robotvacuum.service.RobotStateService;
+import com.ht.robotvacuum.service.RobotTaskEventService;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -102,8 +103,8 @@ public class MqttConfig {
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler mqttInboundHandler(MqttProperties properties, ObjectMapper mapper,
-                                             RobotStateService states) {
-        return new MqttInboundHandler(properties, mapper, states);
+                                             RobotStateService states, RobotTaskEventService tasks) {
+        return new MqttInboundHandler(properties, mapper, states, tasks);
     }
 
     @Bean

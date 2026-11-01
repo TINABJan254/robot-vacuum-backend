@@ -19,6 +19,7 @@ import org.springframework.util.Assert;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 
@@ -52,7 +53,7 @@ public class ScheduleService {
         var robot = robotRepository.findById(robotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Robot", robotId));
         Schedule schedule = new Schedule();
-        schedule.setTime(time);
+        schedule.setTime(time.truncatedTo(ChronoUnit.MINUTES));
         schedule.setEnabled(enabled);
         schedule.setRobot(robot);
         validation.validate(schedule);
@@ -79,7 +80,7 @@ public class ScheduleService {
             }
         }
         if (time != null) {
-            schedule.setTime(time);
+            schedule.setTime(time.truncatedTo(ChronoUnit.MINUTES));
         }
         if (enabled != null) {
             schedule.setEnabled(enabled);
