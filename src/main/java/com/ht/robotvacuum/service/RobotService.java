@@ -2,6 +2,8 @@ package com.ht.robotvacuum.service;
 
 import com.ht.robotvacuum.dto.response.*;
 import com.ht.robotvacuum.dto.request.ReqPairRobotDTO;
+import com.ht.robotvacuum.event.RobotAccessChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.ht.robotvacuum.exception.RobotPairingException;
 import com.ht.robotvacuum.mapper.RobotMapper;
 import org.springframework.security.core.Authentication;
@@ -39,6 +41,7 @@ public class RobotService {
     private final ServiceValidation validation;
     private final CrudAccess access;
     private final RobotMapper mapper;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public ResCreateRobotDTO create(@NotNull Robot robot, Authentication authentication) {
@@ -110,6 +113,7 @@ public class RobotService {
         access.lockRobots(access.actor(authentication), id);
         Robot robot = findRobot(id);
         robot.setUser(null);
+        events.publishEvent(new RobotAccessChangedEvent(id));
         return mapper.toGet(robot);
     }
 
@@ -139,6 +143,11 @@ public class RobotService {
         candidate.setPairCode(actor.admin() && input.getPairCode() != null
                 ? input.getPairCode() : existing.getPairCode());
         candidate.setUser(actor.admin() && input.getUser() != null ? input.getUser() : existing.getUser());
+        Long ownerBefore = existing.getUser() == null ? null : existing.getUser().getId();
+        Long ownerAfter = candidate.getUser() == null ? null : candidate.getUser().getId();
+        if (!java.util.Objects.equals(ownerBefore, ownerAfter)) {
+            events.publishEvent(new RobotAccessChangedEvent(existing.getId()));
+        }
         return mapper.toUpdate(this.update(candidate));
     }
 
@@ -146,6 +155,7 @@ public class RobotService {
     public void deleteById(@Positive long id, Authentication authentication) {
         access.lockRobots(access.actor(authentication), id);
         this.deleteById(id);
+        events.publishEvent(new RobotAccessChangedEvent(id));
     }
 
     private Robot prepareValues(Robot input) {

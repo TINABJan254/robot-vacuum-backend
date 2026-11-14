@@ -70,7 +70,9 @@ class ServiceTests {
         ServiceValidation validation = new ServiceValidation(validatorFactory.getValidator());
         CrudAccess access = new CrudAccess(new CurrentUser(), validation, users, robots);
         userService = new UserService(users, robots, validation, access, new UserMapper());
-        robotService = new RobotService(robots, users, tasks, alerts, validation, access, new RobotMapper());
+        robotService = new RobotService(robots, users, tasks, alerts,
+                mock(com.ht.robotvacuum.repository.ScheduleRepository.class), validation, access,
+                new RobotMapper(), mock(org.springframework.context.ApplicationEventPublisher.class));
         taskService = new TaskService(tasks, robots, validation, access, new TaskMapper());
         alertService = new AlertService(alerts, robots, validation, access, new AlertMapper());
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));

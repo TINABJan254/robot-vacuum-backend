@@ -19,6 +19,11 @@ import java.util.UUID;
 public class RobotCommandService {
 
     private static final Duration COMMAND_TTL = Duration.ofSeconds(15);
+    // Hold-to-move: the app repeats MOVE every few hundred ms. A MOVE delivered late must not
+    // start the robot again long after the user has released the button. Kept a few seconds
+    // (not sub-second) to tolerate clock skew between backend and robot; the firmware's own
+    // manual-move timeout stops a stray MOVE within ~1 s anyway.
+    private static final Duration MOVE_TTL = Duration.ofSeconds(5);
 
     private final CrudAccess access;
     private final ServiceValidation validation;
@@ -38,7 +43,8 @@ public class RobotCommandService {
         }
         var issuedAt = clock.instant();
         var command = new MqttCommandDTO(UUID.randomUUID(), input.getAction(), mode,
-                input.getDirection(), issuedAt, issuedAt.plus(COMMAND_TTL));
+                input.getDirection(), issuedAt,
+                issuedAt.plus(input.getAction() == RobotCommandAction.MOVE ? MOVE_TTL : COMMAND_TTL));
 
         publisher.publishCommand(robotId, command);
         return new ResRobotCommandDTO(command.commandId(), robotId, command.action(), command.mode(),

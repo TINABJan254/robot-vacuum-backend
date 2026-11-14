@@ -104,6 +104,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/v1/robots/pair").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/robots/*/unpair").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/robots/*/telemetry").hasAnyRole("USER", "ADMIN")
+                        // WebSocket upgrade: the app sends "Authorization: Bearer" on the handshake request.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/robots/*/telemetry/ws").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/robots/*/commands").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/users", "/api/v1/users/*",
                                 "/api/v1/robots", "/api/v1/robots/*",
