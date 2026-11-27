@@ -9,6 +9,6 @@ public class TaskMapper {
 
     public ResGetTaskDTO toGet(Task value) {
         return new ResGetTaskDTO(value.getId(), value.getStartedAt(), value.getStatus(),
-                value.getFinishedAt(), value.getRobot().getId());
+                value.getFinishedAt(), value.getRobot().getId(), value.getType());
     }
 }

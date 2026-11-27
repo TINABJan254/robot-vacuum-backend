@@ -76,6 +76,7 @@ public class ScheduledCleaningService {
         }
 
         Task task = new Task();
+        task.setType("scheduled");
         task.setRobot(robot);
         task.setStartedAt(now);
         task.setStatus(TaskStatus.RUNNING);

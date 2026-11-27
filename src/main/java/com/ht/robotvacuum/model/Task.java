@@ -18,6 +18,10 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
+    @Pattern(regexp = "scheduled|on_demand")
+    @Column(length = 16)
+    private String type;
+
     @NotNull
     @Column(name = "started_at", nullable = false)
     private Instant startedAt;

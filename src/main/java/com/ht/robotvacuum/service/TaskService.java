@@ -48,6 +48,7 @@ public class TaskService {
         Robot robot = requireRobot(robotId);
 
         Task created = new Task();
+        created.setType(task.getType());
         created.setStartedAt(task.getStartedAt());
         created.setFinishedAt(task.getFinishedAt());
         created.setStatus(task.getStatus());
@@ -84,6 +85,7 @@ public class TaskService {
         validation.requirePositiveId(robotId, "Robot id");
         Robot robot = requireRobot(robotId);
 
+        existing.setType(task.getType());
         existing.setStartedAt(task.getStartedAt());
         existing.setFinishedAt(task.getFinishedAt());
         existing.setStatus(task.getStatus());
